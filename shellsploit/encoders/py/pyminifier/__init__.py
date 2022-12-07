@@ -80,13 +80,12 @@ from . import compression
 
 py3 = False
 lzma = False
-if not isinstance(sys.version_info, tuple):
-    if sys.version_info.major == 3:
-        py3 = True
-        try:
-            import lzma
-        except ImportError:
-            pass
+if not isinstance(sys.version_info, tuple) and sys.version_info.major == 3:
+    py3 = True
+    try:
+        import lzma
+    except ImportError:
+        pass
 
 # Regexes
 multiline_indicator = re.compile('\\\\(\s*#.*)?\n')
@@ -99,7 +98,6 @@ def test_decorator(f):
 def test_reduce_operators():
     """Test the case where an operator such as an open paren starts a line"""
     (a, b) = 1, 2 # The indentation level should be preserved
-    pass
 
 def test_empty_functions():
     """
@@ -186,7 +184,7 @@ def pyminify(options, files):
         try:
             prepend = open(options.prepend).read()
         except Exception as err:
-            print("Error reading %s:" % options.prepend)
+            print(f"Error reading {options.prepend}:")
             print(err)
 
     obfuscations = (options.obfuscate, options.obf_classes,
@@ -256,10 +254,9 @@ def pyminify(options, files):
                 os.mkdir(options.destdir)
             # Need the path where the script lives for the next steps:
             filepath = os.path.split(sourcefile)[1]
-            path = options.destdir + '/' + filepath # Put everything in destdir
-            f = open(path, 'w')
-            f.write(result)
-            f.close()
+            path = f'{options.destdir}/{filepath}'
+            with open(path, 'w') as f:
+                f.write(result)
             new_filesize = os.path.getsize(path)
             cumulative_new += new_filesize
             percent_saved = round((float(new_filesize) / float(filesize)) * 100, 2) if float(filesize)!=0 else 0

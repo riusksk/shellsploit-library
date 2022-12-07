@@ -44,7 +44,7 @@ def remove_comments(tokens):
     preserved_shebang = ""
     preserved_encoding = ""
     # This (short) loop preserves shebangs and encoding strings:
-    for tok in tokens[0:4]:  # Will always be in the first four tokens
+    for tok in tokens[:4]:  # Will always be in the first four tokens
         line = tok[4]
         # Save the first comment line if it starts with a shebang
         # (e.g. '#!/usr/bin/env python')
@@ -133,32 +133,15 @@ def remove_comments_and_docstrings(source):
         if start_col > last_col:
             out += (" " * (start_col - last_col))
         # Remove comments:
-        if token_type == tokenize.COMMENT:
-            pass
-        # This series of conditionals removes docstrings:
-        elif token_type == tokenize.STRING:
-            if prev_toktype != tokenize.INDENT:
-                # This is likely a docstring; double-check we're not inside an operator:
-                if prev_toktype != tokenize.NEWLINE:
-                    # Note regarding NEWLINE vs NL: The tokenize module
-                    # differentiates between newlines that start a new statement
-                    # and newlines inside of operators such as parens, brackes,
-                    # and curly braces.  Newlines inside of operators are
-                    # NEWLINE and newlines that start new code are NL.
-                    # Catch whole-module docstrings:
-                    if start_col > 0:
-                        # Unlabelled indentation means we're inside an operator
-                        out += token_string
-                    # Note regarding the INDENT token: The tokenize module does
-                    # not label indentation inside of an operator (parens,
-                    # brackets, and curly braces) as actual indentation.
-                    # For example:
-                    # def foo():
-                    #     "The spaces before this docstring are tokenize.INDENT"
-                    #     test = [
-                    #         "The spaces before this string do not get a token"
-                    #     ]
-        else:
+        if (
+            token_type != tokenize.COMMENT
+            and token_type == tokenize.STRING
+            and prev_toktype != tokenize.INDENT
+            and prev_toktype != tokenize.NEWLINE
+            and start_col > 0
+            or token_type not in [tokenize.COMMENT, tokenize.STRING]
+        ):
+            # Unlabelled indentation means we're inside an operator
             out += token_string
         prev_toktype = token_type
         last_col = end_col
@@ -201,37 +184,40 @@ def reduce_operators(source):
         if start_line > last_lineno:
             last_col = 0
         if token_type != tokenize.OP:
-            if start_col > last_col and token_type not in nl_types:
-                if prev_tok[0] != tokenize.OP:
-                    out += (" " * (start_col - last_col))
-            if token_type == tokenize.STRING:
-                if prev_tok[0] == tokenize.STRING:
-                    # Join the strings into one
-                    string_type = token_string[0]  # '' or ""
+            if (
+                start_col > last_col
+                and token_type not in nl_types
+                and prev_tok[0] != tokenize.OP
+            ):
+                out += (" " * (start_col - last_col))
+            if (
+                token_type == tokenize.STRING
+                and prev_tok[0] == tokenize.STRING
+            ):
+                # Join the strings into one
+                string_type = token_string[0]  # '' or ""
+                out = out.rstrip(" ")  # Remove any spaces we inserted prev
+                if not joining_strings:
+                    # Remove prev token and start the new combined string
+                    out = out[:(len(out) - len(prev_tok[1]))]
                     prev_string_type = prev_tok[1][0]
-                    out = out.rstrip(" ")  # Remove any spaces we inserted prev
-                    if not joining_strings:
-                        # Remove prev token and start the new combined string
-                        out = out[:(len(out) - len(prev_tok[1]))]
-                        prev_string = prev_tok[1].strip(prev_string_type)
-                        new_string = (
-                            prev_string + token_string.strip(string_type))
-                        joining_strings = True
-                    else:
-                        new_string += token_string.strip(string_type)
+                    prev_string = prev_tok[1].strip(prev_string_type)
+                    new_string = (
+                        prev_string + token_string.strip(string_type))
+                    joining_strings = True
+                else:
+                    new_string += token_string.strip(string_type)
         else:
-            if token_string in ('}', ')', ']'):
-                if prev_tok[1] == ',':
-                    out = out.rstrip(',')
+            if token_string in ('}', ')', ']') and prev_tok[1] == ',':
+                out = out.rstrip(',')
             if joining_strings:
                 # NOTE: Using triple quotes so that this logic works with
                 # mixed strings using both single quotes and double quotes.
-                out += "'''" + new_string + "'''"
+                out += f"'''{new_string}'''"
                 joining_strings = False
-            if token_string == '@':  # Decorators need special handling
-                if prev_tok[0] == tokenize.NEWLINE:
-                    # Ensure it gets indented properly
-                    out += (" " * (start_col - last_col))
+            if token_string == '@' and prev_tok[0] == tokenize.NEWLINE:
+                # Ensure it gets indented properly
+                out += (" " * (start_col - last_col))
         if not joining_strings:
             out += token_string
         last_col = end_col
@@ -301,10 +287,7 @@ def dedent(source, use_tabs=False):
         def foo(bar):
          test = "This is a test"
     """
-    if use_tabs:
-        indent_char = '\t'
-    else:
-        indent_char = ' '
+    indent_char = '\t' if use_tabs else ' '
     io_obj = io.StringIO(source)
     out = ""
     last_lineno = -1
@@ -312,7 +295,7 @@ def dedent(source, use_tabs=False):
     prev_start_line = 0
     indentation = ""
     indentation_level = 0
-    for i, tok in enumerate(tokenize.generate_tokens(io_obj.readline)):
+    for tok in tokenize.generate_tokens(io_obj.readline):
         token_type = tok[0]
         token_string = tok[1]
         start_line, start_col = tok[2]
@@ -327,10 +310,11 @@ def dedent(source, use_tabs=False):
             continue
         indentation = indent_char * indentation_level
         if start_line > prev_start_line:
-            if token_string in (',', '.'):
-                out += str(token_string)
-            else:
-                out += indentation + str(token_string)
+            out += (
+                str(token_string)
+                if token_string in (',', '.')
+                else indentation + str(token_string)
+            )
         elif start_col > last_col:
             out += indent_char + str(token_string)
         else:

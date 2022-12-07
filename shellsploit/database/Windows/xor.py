@@ -22,36 +22,28 @@ class EncoderModule:
         self.do_the_magic()
 
     def have_bad_chars(self, incoming, chars):
-        for b in chars:
-            if b in incoming:
-                return True
-        return False
+        return any(b in incoming for b in chars)
 
     def shellcode_to_ascii(self, shell_code):
-        output = ""
-        for b in shell_code:
-            output += "\\x%02x" % b
-        return output
+        return "".join("\\x%02x" % b for b in shell_code)
 
     def set_bad_characters(self, bad_characters):
-        if bad_characters is not None:
-            final_bad_chars = []
-            #bad_characters = bad_characters.split('x')
-            bad_characters = bad_characters.split("\\x")
-            bad_characters = bad_characters[1:] 
+        if bad_characters is None:
+            return
+        final_bad_chars = []
+        #bad_characters = bad_characters.split('x')
+        bad_characters = bad_characters.split("\\x")
+        bad_characters = bad_characters[1:] 
 
             # Do some validation on the received characters
-            for item in bad_characters:
-                if item == '':
-                    pass
-                else:
-                    if len(item) == 2:
-                        # Thanks rohan (@cptjesus) for providing this regex code, and making me too lazy
-                        # to do it myself
-                        rohan_re_code = re.compile('[a-f0-9]{2}', flags=re.IGNORECASE)
-                        if rohan_re_code.match(item):
-                            final_bad_chars.append(item)
-            self.bad_chars = [int("0x" + x, 16) for x in final_bad_chars]
+        for item in bad_characters:
+            if item != '' and len(item) == 2:
+                # Thanks rohan (@cptjesus) for providing this regex code, and making me too lazy
+                # to do it myself
+                rohan_re_code = re.compile('[a-f0-9]{2}', flags=re.IGNORECASE)
+                if rohan_re_code.match(item):
+                    final_bad_chars.append(item)
+        self.bad_chars = [int(f"0x{x}", 16) for x in final_bad_chars]
 
     # Takes a blob as input with a single byte key and returns blob output
     def xor(self, x, key):

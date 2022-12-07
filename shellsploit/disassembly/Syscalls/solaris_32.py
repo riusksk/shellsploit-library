@@ -266,12 +266,11 @@ def SolarisSystemcall( sys, key=None):
 
     }
 
-    if key == None:
-        for key in list.keys():
-            if list[key] == sys:
-                return key
-    else:
+    if key is not None:
         return hex(int(list[sys])).replace("0x", "")
+    for key, value in list.items():
+        if value == sys:
+            return key
 
 def SolarisInterrupted():
     return "91"

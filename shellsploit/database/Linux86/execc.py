@@ -6,9 +6,7 @@ class Payload(Shellcode):
     Shellcode.info["name"] = "Linux/x86 - exec shellcode"
 
     def __init__(self, **kwargs):
-        db = [] 
-        for x in kwargs["execommand"]:
-            db.append("\\x" + x.encode("hex"))
+        db = ["\\x" + x.encode("hex") for x in kwargs["execommand"]]
         kwargs["execommand"] = "".join(db)
 
         Shellcode.info["size"] = 36 + Shellcode().getsize(kwargs["execommand"])

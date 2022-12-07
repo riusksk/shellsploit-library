@@ -29,9 +29,8 @@ class Commands(object):
 
         if len(ip) < 0:
             return "NAT IP Not founded."
-        else:
-            nat = "IP : %s\t-NAT" %   ip
-            self.localIP( nat)
+        nat = "IP : %s\t-NAT" %   ip
+        self.localIP( nat)
 
 
     def localIP(self, natip):
@@ -48,10 +47,7 @@ class Commands(object):
     @staticmethod
     def clean():
         from os import name,system
-        if name == "nt":
-            return system('cls')
-        else:
-            return system('clear')
+        return system('cls') if name == "nt" else system('clear')
 
 
     @staticmethod
@@ -81,7 +77,7 @@ class Commands(object):
                 except:
                     pass
             print ("")
-            if cache == None:
+            if cache is None:
                 print ("PID not founded for : {0} ".format(name))
 
 
@@ -92,16 +88,16 @@ class Commands(object):
             print ("")
             system( command)
         except Exception as error:
-            return "Unexpected error : %s " % error
+            return f"Unexpected error : {error} "
 
 
-    @staticmethod		
+    @staticmethod
     def web2ip( target):
         import socket
         try:
             return socket.gethostbyname(target)
         except Exception as error:
-            return "Unexpected error : %s " % error
+            return f"Unexpected error : {error} "
 
 
     @staticmethod

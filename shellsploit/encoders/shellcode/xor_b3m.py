@@ -44,12 +44,12 @@ def xorme(shellcode):
     encode = ""
     if version_info.major >= 3:
         for x in hexlify(cache.encode('utf8')):	
-            y = x ^ int("0x" + insert, 16)
+            y = x ^ int(f"0x{insert}", 16)
             test = r'\x%02x' % y
             encode += test
     else:
         for x in bytearray(cache.decode("hex")):
-            y = x ^ int("0x" + insert, 16)
+            y = x ^ int(f"0x{insert}", 16)
             test = r'\x%02x' % y
             encode += test
 
@@ -64,7 +64,7 @@ def xorme(shellcode):
 def start(shellcode):
     try:
         control = True
-        while control == True:
+        while control:
             qe = findall("..?", xorme(shellcode))
             if "00" in qe:
                 qe = findall("..?", xorme(shellcode))
@@ -78,21 +78,20 @@ def start(shellcode):
 
 def prestart(data, roll=None):
     cache = True
-    if roll == None or roll == 1:
+    if roll is None or roll == 1:
         data = start(data) 
         cache = False
     elif roll > 25:
         return "This script is still BETA.Please do not use iteration more than 25 times."
     else:
         cache = False
-        for x in range(int(roll)):
+        for _ in range(int(roll)):
             if data == "After roll 9999 times,payload generate failed.":
                 cache = True
                 break
             data = start(data)
 
-    if cache == False:
-        qe = findall("..?", data)
-        return "\\x" + "\\x".join(qe).lower()
-    else:
+    if cache != False:
         return "After roll 9999 times,payload generate failed."
+    qe = findall("..?", data)
+    return "\\x" + "\\x".join(qe).lower()

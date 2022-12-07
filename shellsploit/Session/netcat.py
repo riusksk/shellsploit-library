@@ -26,21 +26,21 @@ except NameError:
 
 def listen(port=4444):
     global clisock, listening, done
-    s   = socket(AF_INET, SOCK_STREAM)         
-    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)   
-    s.bind(('0.0.0.0', port))                   
-    s.listen(3)                                
+    s   = socket(AF_INET, SOCK_STREAM)
+    s.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+    s.bind(('0.0.0.0', port))
+    s.listen(3)
     listening   = True
-    sock, addr  = s.accept()                   
-    clisock     = sock                         
-    print("Client connected from {}".format(addr))
+    sock, addr  = s.accept()
+    clisock     = sock
+    print(f"Client connected from {addr}")
     data = ""
     while listening:
         try:
-            rr, _, _ = select([sock,], [], [], 1) 
+            rr, _, _ = select([sock,], [], [], 1)
             if rr:
-                data = sock.recv(1024)             
-                print("{}".format(data), end="")   
+                data = sock.recv(1024)
+                print(f"{data}", end="")
         except:
             exit()
     print("Done listening.")
@@ -60,8 +60,6 @@ def write():
             _, wr, _ = select([], [clisock,], [], 1)
             if wr:
                 clisock.sendall(data + "\n")
-        else:
-            pass
 
 
 def nc( PORT=4444):

@@ -30,7 +30,7 @@ def PORT( port):
     fixmesempai = findall('..?', hex(int(port))[2:])
     for x in fixmesempai:
         if len(x) == 1:
-            x = "0"+x
+            x = f"0{x}"
         db.append(x)
     return "\\x"+"\\x".join(db)
 
@@ -38,13 +38,11 @@ def PORT( port):
 def IP( ip):
     #0x101017f : 127.1.1.1
     ip = str(ip).split(".")
-    db = []
     db2 = []
-    for x in ip:
-        db.append(hex( int(x))[2:])
+    db = [hex( int(x))[2:] for x in ip]
     for x in db: 
         if len(x) == 1:
-            x = "0"+x
+            x = f"0{x}"
         db2.append(x)
     return "\\x"+"\\x".join(db2)
 
@@ -59,25 +57,24 @@ def rawSTR( string):
 
 
 def ARM( string):
-    db = []
-    if "/" in string:
-        if len(string) % 4 == 0:
-            string = string
-        elif  len(string) % 4 == 1:
-            string = filler( string, 4)
-        elif len(string)	% 4 == 2:
-            string = filler( string, 3)
-        elif len(string) % 4 == 3:
-            string = filler( string, 2)
-        for x in range(0,len(string),4):
-            db.append(ARMsplitter(string[x:x+4]))
-        return "".join(db)
+    if "/" not in string:
+        return
+    if len(string) % 4 == 0:
+        string = string
+    elif  len(string) % 4 == 1:
+        string = filler( string, 4)
+    elif len(string)	% 4 == 2:
+        string = filler( string, 3)
+    elif len(string) % 4 == 3:
+        string = filler( string, 2)
+    db = [ARMsplitter(string[x:x+4]) for x in range(0,len(string),4)]
+    return "".join(db)
 
 
 def ARMsplitter( hexdump, pushdword="None"):
-    db = []
     if pushdword == "None":
         fixmesempai = findall('....?', hexdump)
+        db = []
         for x in fixmesempai[::-1]:
             first = codecs.encode(str.encode(x[::-1]), 'hex')
             first = first.decode('utf-8')
@@ -102,10 +99,9 @@ def stackconvertSTR( string, win=False):
             string = filler( string, 3)
         elif len(string) % 4 == 3:
             string = filler( string, 2)
-        for x in range(0,len(string),4):
-            db.append(splitter(string[x:x+4]))
+        db.extend(splitter(string[x:x+4]) for x in range(0,len(string),4))
         return "".join(db[::-1])
-        #return "".join(db)
+            #return "".join(db)
 
     #Linux_x86
     #68 PUSH DWORD
@@ -119,19 +115,13 @@ def stackconvertSTR( string, win=False):
 
 
     elif len(string) % 4 == 0:
-        for x in range(0,len(string),4):
-            db.append(splitter(string[x:x+4]))
-        if win == True:
-            return "".join(db[::-1]) #Windows
-        else:
-            return "".join(db) #Unix,Linux etc..
-
+        db.extend(splitter(string[x:x+4]) for x in range(0,len(string),4))
+        return "".join(db[::-1]) if win == True else "".join(db)
     elif 2 < len(string) < 4:
         first = codecs.encode(str.encode(hexdump[::-1]), 'hex')
         first = first.decode('utf-8')
         second = findall("..?", first)[::-1]
-        for x in second:
-            db.append("\\x"+x)
+        db.extend("\\x"+x for x in second)
         return "\\x66\\x68"+"".join(db)
 
 
@@ -142,15 +132,12 @@ def stackconvertSTR( string, win=False):
                 db.append(splitter(string[x:x+4]))
             else:
                 db.append(splitter(string[x:x+4], "WordTime"))
-        if win == True:
-            return "".join(db[::-1]) #Windows
-        else:
-            return "".join(db) #Unix,Linux etc..)
+        return "".join(db[::-1]) if win == True else "".join(db)
 
 
 def filler( string, number):
-    string = [x for x in string]
-    for x in range(0, len(string)):
+    string = list(string)
+    for x in range(len(string)):
         if string[x] == "/":
             string[x] = "/"*number
             break
@@ -178,8 +165,7 @@ def splitter( hexdump, pushdword="None"):
             first = codecs.encode(str.encode(hexdump[::-1]), 'hex')
             first = first.decode('utf-8')
             second = findall("..?", first)[::-1]
-            for x in second:
-                db.append("\\x"+x)
+            db.extend("\\x"+x for x in second)
             return "\\x66\\x68"+"".join(db)
 
 
