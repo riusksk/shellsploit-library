@@ -82,9 +82,7 @@ def AES(TEXT, KEY, choice):
     # AES key must be either 16, 24, or 32 bytes long
     BS = len(KEY) if len(KEY) % 16 == 0 or len(
         KEY) % 24 == 0 or len(KEY) % 32 == 0 else False
-    pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS) 
-    unpad = lambda s: s[:-ord(s[len(s) - 1:])]
-
+    pad = lambda s: s + (BS - len(s) % BS) * chr(BS - len(s) % BS)
     if choice == "encode":
         raw = pad(TEXT)
         iv = Random.new().read(AES.block_size)
@@ -94,4 +92,6 @@ def AES(TEXT, KEY, choice):
         enc = b64decode(TEXT)
         iv = enc[:16]
         cipher = AES.new(KEY, AES.MODE_CBC, iv)
+        unpad = lambda s: s[:-ord(s[-1:])]
+
         return unpad(cipher.decrypt(enc[16:])) if version_info[0] == 2 else unpad(cipher.decrypt(enc[16:])).decode("utf-8")

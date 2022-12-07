@@ -11,16 +11,15 @@ from capstoneheader import *
 
 def disasNOTintel(shellcode, choice, bits=32):
     if choice == "arm":
-        if bits == 64:
-            md = Cs(CS_ARCH_ARM64, CS_MODE_ARM)
-        else:
-            md = Cs(CS_ARCH_ARM32, CS_MODE_ARM)
+        md = (
+            Cs(CS_ARCH_ARM64, CS_MODE_ARM)
+            if bits == 64
+            else Cs(CS_ARCH_ARM32, CS_MODE_ARM)
+        )
+    elif bits == 64:
+        md = Cs(CS_ARCH_MIPS, CS_MODE_64)
     else:
-        # Must be test ..
-        if bits == 64:
-            md = Cs(CS_ARCH_MIPS, CS_MODE_64)
-        else:
-            md = Cs(CS_ARCH_MIPS, CS_MODE_32)
+        md = Cs(CS_ARCH_MIPS, CS_MODE_32)
 
     for i in md.disasm(shellcode, 0x00000):
         if len(hexlify(i.bytes)) > 6:

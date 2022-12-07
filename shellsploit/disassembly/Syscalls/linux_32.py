@@ -365,7 +365,7 @@ def i386Systemcall( sys):
         "execveat":"358" 
     }
 
-    for key in list.keys():
+    for key in list:
         if list[key] == sys:
             return key
 

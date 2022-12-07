@@ -18,9 +18,8 @@ from itertools import permutations
 from . import analyze
 from . import token_utils
 
-if not isinstance(sys.version_info, tuple):
-    if sys.version_info.major == 3:
-        unichr = chr  # So we can support both 2 and 3
+if not isinstance(sys.version_info, tuple) and sys.version_info.major == 3:
+    unichr = chr  # So we can support both 2 and 3
 
 try:
     unichr(0x10000)  # Will throw a ValueError on narrow Python builds
@@ -65,12 +64,13 @@ def obfuscation_machine(use_unicode=False, identifier_length=1):
             char = choice(big_list)
             if unicodedata.category(char) in allowed_categories:
                 orientation = unicodedata.bidirectional(char)
-                if last_orientation in rtl_categories:
-                    if orientation not in rtl_categories:
-                        combined.append(char)
-                else:
-                    if orientation in rtl_categories:
-                        combined.append(char)
+                if (
+                    last_orientation in rtl_categories
+                    and orientation not in rtl_categories
+                    or last_orientation not in rtl_categories
+                    and orientation in rtl_categories
+                ):
+                    combined.append(char)
                 last_orientation = orientation
     else:
         combined = lowercase + uppercase
@@ -139,19 +139,16 @@ def find_obfuscatables(tokens, obfunc, ignore_length=False):
             skip_line = False
         if skip_line:
             continue
-        result = obfunc(tokens, index, ignore_length=ignore_length)
-        if result:
+        if result := obfunc(tokens, index, ignore_length=ignore_length):
             if skip_next:
                 skip_next = False
             elif result == '__skipline__':
                 skip_line = True
             elif result == '__skipnext__':
                 skip_next = True
-            elif result in obfuscatables:
-                pass
-            else:
+            elif result not in obfuscatables:
                 obfuscatables.append(result)
-        else:  # If result is empty we need to reset skip_next so we don't
+        else:
             skip_next = False  # accidentally skip the next identifier
     return obfuscatables
 
@@ -192,16 +189,14 @@ def obfuscatable_variable(tokens, index, ignore_length=False):
         return None  # Skip this token
     if token_string.startswith('__'):
         return None
-    if next_tok_string == ".":
-        if token_string in imported_modules:
-            return None
+    if next_tok_string == "." and token_string in imported_modules:
+        return None
     if prev_tok_string == 'import':
         return '__skipline__'
     if prev_tok_string == ".":
         return '__skipnext__'
-    if prev_tok_string == "for":
-        if len(token_string) > 2:
-            return token_string
+    if prev_tok_string == "for" and len(token_string) > 2:
+        return token_string
     if token_string == "for":
         return None
     if token_string in keyword_args.keys():
@@ -210,12 +205,9 @@ def obfuscatable_variable(tokens, index, ignore_length=False):
         return '__skipline__'
     if prev_tok_type != tokenize.INDENT and next_tok_string != '=':
         return '__skipline__'
-    if not ignore_length:
-        if len(token_string) < 3:
-            return None
-    if token_string in RESERVED_WORDS:
+    if not ignore_length and len(token_string) < 3:
         return None
-    return token_string
+    return None if token_string in RESERVED_WORDS else token_string
 
 
 def obfuscatable_class(tokens, index, **kwargs):
@@ -325,16 +317,15 @@ def replace_obfuscatables(module, tokens, obfunc, replace, name_generator, table
             function_indent = indent
             function_name = tokens[index + 1][1]
             inside_function = function_name
-        result = obfunc(
+        if result := obfunc(
             tokens,
             index,
             replace,
             replacement,
             right_of_equal,
             inside_parens,
-            inside_function
-        )
-        if result:
+            inside_function,
+        ):
             if skip_next:
                 skip_next = False
             elif skip_line:
@@ -355,16 +346,15 @@ def replace_obfuscatables(module, tokens, obfunc, replace, name_generator, table
                 # parens (which indicates arguments)
                 if not inside_parens:
                     right_of_equal = True
-            else:
-                if table:  # Save it for later use in other files
-                    combined_name = "%s.%s" % (module, token_string)
-                    try:  # Attempt to use an existing value
-                        tokens[index][1] = table[0][combined_name]
-                    except KeyError:  # Doesn't exist, add it to table
-                        table[0].update({combined_name: result})
-                        tokens[index][1] = result
-                else:
+            elif table:  # Save it for later use in other files
+                combined_name = f"{module}.{token_string}"
+                try:  # Attempt to use an existing value
+                    tokens[index][1] = table[0][combined_name]
+                except KeyError:  # Doesn't exist, add it to table
+                    table[0].update({combined_name: result})
                     tokens[index][1] = result
+            else:
+                tokens[index][1] = result
 
 
 def obfuscate_variable(
@@ -383,6 +373,7 @@ def obfuscate_variable(
     def return_replacement(replacement):
         VAR_REPLACEMENTS[replacement] = replace
         return replacement
+
     tok = tokens[index]
     token_type = tok[0]
     token_string = tok[1]
@@ -397,9 +388,8 @@ def obfuscate_variable(
         next_tok = (54, '\n', (1, 1), (1, 2), '#\n')
     if token_string == "import":
         return '__skipline__'
-    if next_tok[1] == '.':
-        if token_string in imported_modules:
-            return None
+    if next_tok[1] == '.' and token_string in imported_modules:
+        return None
     if token_string == "=":
         return '__right_of_equal__'
     if token_string == "(":
@@ -420,9 +410,8 @@ def obfuscate_variable(
                 if not right_of_equal:
                     if not inside_parens:
                         return return_replacement(replacement)
-                    else:
-                        if next_tok[1] != '=':
-                            return return_replacement(replacement)
+                    if next_tok[1] != '=':
+                        return return_replacement(replacement)
                 elif not inside_parens:
                     return return_replacement(replacement)
                 else:
@@ -431,9 +420,8 @@ def obfuscate_variable(
         elif not right_of_equal:
             if not inside_parens:
                 return return_replacement(replacement)
-            else:
-                if next_tok[1] != '=':
-                    return return_replacement(replacement)
+            if next_tok[1] != '=':
+                return return_replacement(replacement)
         elif right_of_equal and not inside_parens:
             return return_replacement(replacement)
 
@@ -477,6 +465,7 @@ def obfuscate_class(tokens, index, replace, replacement, *args):
     def return_replacement(replacement):
         CLASS_REPLACEMENTS[replacement] = replace
         return replacement
+
     tok = tokens[index]
     token_type = tok[0]
     token_string = tok[1]
@@ -486,9 +475,8 @@ def obfuscate_class(tokens, index, replace, replacement, *args):
         return None  # Skip this token
     if token_string.startswith('__'):
         return None
-    if prev_tok_string != '.':
-        if token_string == replace:
-            return return_replacement(replacement)
+    if prev_tok_string != '.' and token_string == replace:
+        return return_replacement(replacement)
 
 
 def obfuscate_unique(tokens, index, replace, replacement, *args):
@@ -565,9 +553,10 @@ def obfuscate_builtins(module, tokens, name_generator, table=None):
     """
     used_builtins = analyze.enumerate_builtins(tokens)
     obfuscated_assignments = remap_name(name_generator, used_builtins, table)
-    replacements = []
-    for assignment in obfuscated_assignments.split('\n'):
-        replacements.append(assignment.split('=')[0])
+    replacements = [
+        assignment.split('=')[0]
+        for assignment in obfuscated_assignments.split('\n')
+    ]
     replacement_dict = dict(zip(used_builtins, replacements))
     if table:
         table[0].update(replacement_dict)
@@ -579,7 +568,7 @@ def obfuscate_builtins(module, tokens, name_generator, table=None):
     skip_tokens = 0
     matched_shebang = False
     matched_encoding = False
-    for tok in tokens[0:4]:  # Will always be in the first four tokens
+    for tok in tokens[:4]:  # Will always be in the first four tokens
         line = tok[4]
         if analyze.shebang.match(line):  # (e.g. '#!/usr/bin/env python')
             if not matched_shebang:
@@ -610,16 +599,16 @@ def obfuscate_global_import_methods(module, tokens, name_generator, table=None):
     #print("module_methods: %s" % module_methods)
     # Make a 1-to-1 mapping dict of module_method<->replacement:
     if table:
-        replacement_dict = {}
-        for module_method in module_methods:
-            if module_method in table[0].keys():
-                replacement_dict.update({module_method: table[0][module_method]})
-            else:
-                replacement_dict.update({module_method: next(name_generator)})
+        replacement_dict = {
+            module_method: table[0][module_method]
+            if module_method in table[0].keys()
+            else next(name_generator)
+            for module_method in module_methods
+        }
         # Update the global lookup table with the new entries:
         table[0].update(replacement_dict)
     else:
-        method_map = [next(name_generator) for i in module_methods]
+        method_map = [next(name_generator) for _ in module_methods]
         replacement_dict = dict(zip(module_methods, method_map))
     import_line = False
     # Replace module methods with our obfuscated names in *tokens*
@@ -630,19 +619,19 @@ def obfuscate_global_import_methods(module, tokens, name_generator, table=None):
             if token_type != tokenize.NAME:
                 continue  # Speedup
             tokens[index + 1][1]
-            if token_string == module_method.split('.')[0]:
-                if tokens[index + 1][1] == '.':
-                    if tokens[index + 2][1] == module_method.split('.')[1]:
-                        if table:  # Attempt to use an existing value
-                            tokens[index][1] = table[0][module_method]
-                            tokens[index + 1][1] = ""
-                            tokens[index + 2][1] = ""
-                        else:
-                            tokens[index][1] = replacement_dict[module_method]
-                            tokens[index + 1][1] = ""
-                            tokens[index + 2][1] = ""
+            if (
+                token_string == module_method.split('.')[0]
+                and tokens[index + 1][1] == '.'
+                and tokens[index + 2][1] == module_method.split('.')[1]
+            ):
+                if table:  # Attempt to use an existing value
+                    tokens[index][1] = table[0][module_method]
+                else:
+                    tokens[index][1] = replacement_dict[module_method]
+                tokens[index + 1][1] = ""
+                tokens[index + 2][1] = ""
     # Insert our map of replacement=what after each respective module import
-    for module_method, replacement in replacement_dict.items():
+    for module_method in replacement_dict:
         indents = []
         index = 0
         for tok in tokens[:]:
@@ -660,17 +649,22 @@ def obfuscate_global_import_methods(module, tokens, name_generator, table=None):
                 if token_string == module_method.split('.')[0]:
                     # Insert the obfuscation assignment after the import
                     imported_module = ".".join(module_method.split('.')[:-1])
-                    if table and imported_module in local_imports:
-                        line = "%s=%s.%s\n" % (  # This ends up being 6 tokens
+                    line = (
+                        "%s=%s.%s\n"
+                        % (  # This ends up being 6 tokens
                             replacement_dict[module_method],
                             imported_module,
-                            replacement_dict[module_method]
+                            replacement_dict[module_method],
                         )
-                    else:
-                        line = "%s=%s\n" % (  # This ends up being 6 tokens
-                            replacement_dict[module_method], module_method)
+                        if table and imported_module in local_imports
+                        else "%s=%s\n"
+                        % (  # This ends up being 6 tokens
+                            replacement_dict[module_method],
+                            module_method,
+                        )
+                    )
                     for indent in indents:  # Fix indentation
-                        line = "%s%s" % (indent[1], line)
+                        line = f"{indent[1]}{line}"
                         index += 1
                     insert_in_next_line(tokens, index, line)
                     index += 6  # To make up for the six tokens we inserted
@@ -691,10 +685,10 @@ def obfuscate(module, tokens, options, name_generator=None, table=None):
     will be used to perform lookups of replacements and any new replacements
     will be added to it.
     """
-    # Need a universal instance of our generator to avoid duplicates
-    identifier_length = int(options.replacement_length)
     ignore_length = False
     if not name_generator:
+        # Need a universal instance of our generator to avoid duplicates
+        identifier_length = int(options.replacement_length)
         if options.use_nonlatin:
             ignore_length = True
             if sys.version_info[0] == 3:
@@ -784,7 +778,7 @@ if __name__ == "__main__":
     try:
         source = open(sys.argv[1]).read()
     except:
-        print("Usage: %s <filename.py>" % sys.argv[0])
+        print(f"Usage: {sys.argv[0]} <filename.py>")
         sys.exit(1)
     if sys.version_info[0] == 3:
         name_generator = obfuscation_machine(use_unicode=True)

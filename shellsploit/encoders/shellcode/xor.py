@@ -29,8 +29,7 @@ def xorme(data):
             shellcode += '0x%02x,' % y
 
     padding = str(shellcode) + str(xor)
-    shellcode = "EB095E8036"
-    shellcode += str(xor).replace("0x", "")
+    shellcode = "EB095E8036" + str(xor).replace("0x", "")
     shellcode += "7408"
     shellcode += "46"
     shellcode += "EBF8"
@@ -42,7 +41,7 @@ def xorme(data):
 def start(shellcode):
     try:
         control = True
-        while control == True:
+        while control:
             qe = findall("..?", xorme(shellcode))
             if "00" in qe:
                 qe = findall("..?", xorme(shellcode))
@@ -55,12 +54,12 @@ def start(shellcode):
 
 
 def prestart(data, roll=None):
-    if roll == None or roll == 1:
-        data = start(data) 
+    if roll is None or roll == 1:
+        data = start(data)
     elif roll > 50:
         return "Please do not use iteration more than 50 times ..."
     else:
-        for x in range(int(roll)):
+        for _ in range(int(roll)):
             data = start(data)
 
     qe = findall("..?", data)

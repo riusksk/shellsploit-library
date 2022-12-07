@@ -15,15 +15,13 @@ class Disassembly(object):
             return None
 
         shellcode = self.getrawhex(shellcode)
-        if "linux_mips" not in string or "linux_mips" not in string:
+        if "linux_mips" not in string:
             from shell.disassembly.dis import disas
 
             try: 
                 if "64" in string:
                     print(disas(str(bytearray(shellcode.decode("hex"))), 64))
-                elif "86" in string:
-                    print(disas(str(bytearray(shellcode.decode("hex"))), 32))
-                else: 
+                else:
                     print(disas(str(bytearray(shellcode.decode("hex"))), 32))
             except TypeError:
                 print("Disassembly failed.Please do not forget report.")
@@ -34,11 +32,10 @@ class Disassembly(object):
                 print("\n\n")
                 if "mips" in string:
                     print(disasNOTintel(shellcode.decode("hex"), "mips", 32))
-                else:
-                    if "64" in string:
-                        print(disasNOTintel(shellcode.decode("hex"), "arm", 64))
-                    elif "86" in string:
-                        print(disasNOTintel(shellcode.decode("hex"), "arm", 32))
+                elif "64" in string:
+                    print(disasNOTintel(shellcode.decode("hex"), "arm", 64))
+                elif "86" in string:
+                    print(disasNOTintel(shellcode.decode("hex"), "arm", 32))
                 print("\n\n")
             except TypeError as err:    
                 print("Disassembly failed.Please do not forget report.")

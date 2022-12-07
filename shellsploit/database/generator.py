@@ -155,9 +155,9 @@ def generator(choose=None, shellcode=None, COMMAND=None, FILE=None, ip=None, por
         elif shellcode == "tcp_bind":
             from .FreeBSDx86.tcp_bind import Payload
             if len(str(ip)) == 5:
-                PORT = "\\x{0}\\x{1}".format((hex(int(ip))[2:][0:2], hex(int(ip))[2:][2:]))
+                PORT = "\\x{0}\\x{1}".format((hex(int(ip))[2:][:2], hex(int(ip))[2:][2:]))
             else:
-                PORT = "\\x{0}\\x{1}".format(("0" + hex(int(ip))[2:][0], hex(int(ip))[2:][1:]))
+                PORT = "\\x{0}\\x{1}".format((f"0{hex(int(ip))[2:][0]}", hex(int(ip))[2:][1:]))
             return Payload(lport=PORT).getpayload()
 
         elif shellcode == "exec":

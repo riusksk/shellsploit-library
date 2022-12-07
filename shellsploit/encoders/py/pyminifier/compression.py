@@ -46,10 +46,7 @@ import shutil
 # Import our own supporting modules
 from . import analyze, token_utils, minification, obfuscate
 
-py3 = False
-if not isinstance(sys.version_info, tuple):
-    if sys.version_info.major == 3:
-        py3 = True
+py3 = not isinstance(sys.version_info, tuple) and sys.version_info.major == 3
 
 
 def bz2_pack(source):
@@ -68,10 +65,9 @@ def bz2_pack(source):
     # Preserve shebangs (don't care about encodings for this)
     first_line = source.split('\n')[0]
     if analyze.shebang.match(first_line):
-        if py3:
-            if first_line.rstrip().endswith('python'):  # Make it python3
-                first_line = first_line.rstrip()
-                first_line += '3'  # !/usr/bin/env python3
+        if py3 and first_line.rstrip().endswith('python'):
+            first_line = first_line.rstrip()
+            first_line += '3'  # !/usr/bin/env python3
         out = first_line + '\n'
     compressed_source = bz2.compress(source.encode('utf-8'))
     out += 'import bz2, base64\n'
@@ -97,10 +93,9 @@ def gz_pack(source):
     # Preserve shebangs (don't care about encodings for this)
     first_line = source.split('\n')[0]
     if analyze.shebang.match(first_line):
-        if py3:
-            if first_line.rstrip().endswith('python'):  # Make it python3
-                first_line = first_line.rstrip()
-                first_line += '3'  # !/usr/bin/env python3
+        if py3 and first_line.rstrip().endswith('python'):
+            first_line = first_line.rstrip()
+            first_line += '3'  # !/usr/bin/env python3
         out = first_line + '\n'
     compressed_source = zlib.compress(source.encode('utf-8'))
     out += 'import zlib, base64\n'
@@ -126,10 +121,9 @@ def lzma_pack(source):
     # Preserve shebangs (don't care about encodings for this)
     first_line = source.split('\n')[0]
     if analyze.shebang.match(first_line):
-        if py3:
-            if first_line.rstrip().endswith('python'):  # Make it python3
-                first_line = first_line.rstrip()
-                first_line += '3'  # !/usr/bin/env python3
+        if py3 and first_line.rstrip().endswith('python'):
+            first_line = first_line.rstrip()
+            first_line += '3'  # !/usr/bin/env python3
         out = first_line + '\n'
     compressed_source = lzma.compress(source.encode('utf-8'))
     out += 'import lzma, base64\n'
@@ -196,10 +190,9 @@ def zip_pack(filepath, options):
     if not shebang:
         # We *must* have a shebang for this to work so make a conservative default:
         shebang = "#!/usr/bin/env python"
-    if py3:
-        if shebang.rstrip().endswith('python'):  # Make it python3 (to be safe)
-            shebang = shebang.rstrip()
-            shebang += '3\n'  # !/usr/bin/env python3
+    if py3 and shebang.rstrip().endswith('python'):
+        shebang = shebang.rstrip()
+        shebang += '3\n'  # !/usr/bin/env python3
     if not options.nominify:  # Minify as long as we don't have this option set
         source = minification.minify(primary_tokens, options)
     # Write out to a temporary file to add to our zip
@@ -210,7 +203,7 @@ def zip_pack(filepath, options):
     path = os.path.split(filepath)[0]
     if not path:
         path = os.getcwd()
-    main_py = path + '/__main__.py'
+    main_py = f'{path}/__main__.py'
     if os.path.exists(main_py):
         # There's an existing __main__.py, use it
         z.write(main_py, '__main__.py')
@@ -244,7 +237,7 @@ def zip_pack(filepath, options):
     included_modules = []
     for module in local_modules:
         module = module.replace('.', '/')
-        module = "%s.py" % module
+        module = f"{module}.py"
         # Add the filesize to our total
         cumulative_size += os.path.getsize(module)
         # Also record that we've added it to the archive
@@ -284,7 +277,7 @@ def zip_pack(filepath, options):
     os.chmod(dest, 0o755)  # Make it executable (since we added the shebang)
     pyz_filesize = os.path.getsize(dest)
     percent_saved = round(float(pyz_filesize) / float(cumulative_size) * 100, 2)
-    print('%s saved as compressed executable zip: %s' % (filepath, dest))
+    print(f'{filepath} saved as compressed executable zip: {dest}')
     print('The following modules were automatically included (as automagic '
           'dependencies):\n')
     for module in included_modules:
